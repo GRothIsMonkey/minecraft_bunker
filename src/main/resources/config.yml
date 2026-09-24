@@ -1,0 +1,33 @@
+# BlacksiteBunker - SITE-7 configuration
+#
+# The main surface entrance (round blast door threshold) is anchored at this position. The whole complex is
+# built relative to it. Default: X=-291 Y=68 Z=141, entrance facing EAST.
+# Changing the anchor AFTER a build moves the plan: finish/verify with the anchor used for the build.
+anchor:
+  x: -291
+  y: 68
+  z: 141
+
+# World to build in. Empty = the server's main (first) world.
+world: ""
+
+# Milliseconds of each server tick the builder may use (50 ms = one whole tick). 20-30 keeps TPS healthy;
+# raise for a faster build on an empty server, lower on a busy one. Can be changed live: /bunker speed <ms>
+tick-budget-ms: 25
+
+# Seconds you have to type "bunker confirm" after "bunker build".
+confirm-seconds: 60
+
+# Put modest themed supplies/lore into chests (food, basic gear, documents). false = empty chests + lore books only.
+furnish-loot: true
+
+# Run a full verification automatically when the build finishes.
+auto-verify: true
+
+# Plugin-powered sign lifts ([Lift Up]/[Lift Down] signs). If false the stairs and ladders still work.
+lifts-enabled: true
+# Only allow lift signs inside the bunker's bounds (recommended).
+lifts-inside-bunker-only: true
+
+# Replace mob spawners found inside the build bounds with stone after building (dungeons next to rooms).
+remove-spawners-in-bounds: true

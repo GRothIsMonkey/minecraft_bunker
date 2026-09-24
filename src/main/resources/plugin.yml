@@ -1,0 +1,21 @@
+name: BlacksiteBunker
+version: ${project.version}
+main: com.blacksite.bunker.plugin.BlacksiteBunkerPlugin
+description: Builds SITE-7, a huge multi-level underground blacksite bunker, in safe tick-budgeted batches.
+author: BlacksiteBunker
+load: POSTWORLD
+commands:
+  bunker:
+    description: SITE-7 bunker builder (build, confirm, status, pause, resume, verify, info, tp, selftest)
+    usage: /<command> [build|confirm|cancel|status|pause|resume|verify|selftest|info|tp|speed|help]
+    aliases: [blacksite, bsb, site7]
+permissions:
+  blacksitebunker.admin:
+    description: Build, verify and manage the bunker
+    default: op
+  blacksitebunker.tp:
+    description: Use /bunker tp to jump to bunker levels
+    default: op
+  blacksitebunker.lift:
+    description: Use the bunker's sign lifts ([Lift Up] / [Lift Down])
+    default: true
