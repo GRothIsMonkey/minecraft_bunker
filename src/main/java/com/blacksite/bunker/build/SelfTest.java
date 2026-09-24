@@ -9,6 +9,8 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
+import org.bukkit.Location;
+import org.bukkit.entity.Minecart;
 import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -122,11 +124,13 @@ public final class SelfTest implements Runnable {
         int id = b.getTypeId(), d = b.getData();
         if (id == B.STONE_PLATE || id == B.WOOD_PLATE) {
             b.setData((byte) (on ? 1 : 0), true);
+            physics(x, y, z, id);
             physics(x, y - 1, z, id);
             return;
         }
         b.setData((byte) (on ? (d | 8) : (d & 7)), true);
         int[] att = attached(x, y, z, id, d & 7);
+        physics(x, y, z, id);
         physics(att[0], att[1], att[2], id);
     }
 
@@ -357,6 +361,121 @@ public final class SelfTest implements Runnable {
                         return -1;
                     }
                 });
+            } else if (m.type.equals("rail-station")) {
+                String[] bp = m.note.substring(m.note.indexOf(':') + 1).split(",");
+                final int bx = Integer.parseInt(bp[0]) + plan.dx, by = Integer.parseInt(bp[1]) + plan.dy,
+                        bz = Integer.parseInt(bp[2]) + plan.dz;
+                int[] top = null;
+                for (Canvas.Marker t : plan.canvas.markers) {
+                    if (t.type.equals("rail-top")) {
+                        top = new int[]{t.x + plan.dx, t.y + plan.dy, t.z + plan.dz};
+                    }
+                }
+                final int[] end = top;
+                queue.add(new Case("escape rail ride (station button to pump house and back)") {
+                    Minecart cart;
+                    Location home;
+                    int ticks, leg, upSecs, pressAt;
+                    double maxX = -1e9;
+
+                    int nearby;
+
+                    Minecart find(double cx, double cy, double cz, double r) {
+                        Minecart best = null;
+                        double bd = r * r;
+                        nearby = 0;
+                        for (Minecart mc : world.getEntitiesByClass(Minecart.class)) {
+                            double d = mc.getLocation().distanceSquared(new Location(world, cx, cy, cz));
+                            if (d <= 9) {
+                                nearby++;
+                            }
+                            if (d <= bd) {
+                                best = mc;
+                                bd = d;
+                            }
+                        }
+                        return best;
+                    }
+
+                    void keepLoaded() {
+                        for (int cx = (Math.min(x, end[0]) >> 4) - 1; cx <= (Math.max(x, end[0]) >> 4) + 1; cx++) {
+                            for (int cz = (z >> 4) - 1; cz <= (z >> 4) + 1; cz++) {
+                                if (!world.isChunkLoaded(cx, cz)) {
+                                    world.loadChunk(cx, cz);
+                                }
+                            }
+                        }
+                    }
+
+                    int finish(boolean ok, String why) {
+                        if (cart != null && home != null) {
+                            cart.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+                            cart.teleport(home);
+                        }
+                        if (ok) {
+                            pass();
+                            notes.add(name + ": " + why);
+                        } else {
+                            fail(name + ": " + why);
+                        }
+                        return -1;
+                    }
+
+                    int step(int s) {
+                        if (s == 0) {
+                            if (end == null) {
+                                return finish(false, "no rail-top marker");
+                            }
+                            keepLoaded();
+                            cart = find(x + 0.5, y, z + 0.5, 1.5);
+                            if (cart == null) {
+                                return finish(false, "no minecart waiting at the station");
+                            }
+                            home = cart.getLocation().clone();
+                            actuate(bx, by, bz, true);
+                            return 25;
+                        }
+                        if (s == 1) {
+                            actuate(bx, by, bz, false);
+                            if (cart.getLocation().getX() < home.getX() + 1) {
+                                return finish(false, String.format(java.util.Locale.ROOT,
+                                        "button did not launch the cart (from x %.2f to %.2f, speed %.3f, %d carts near)",
+                                        home.getX(), cart.getLocation().getX(), cart.getVelocity().length(), nearby));
+                            }
+                            ticks = 25;
+                            return 10;
+                        }
+                        keepLoaded();
+                        ticks += 10;
+                        Location l = cart.getLocation();
+                        maxX = Math.max(maxX, l.getX());
+                        boolean still = cart.getVelocity().length() < 0.05;
+                        if (leg == 1 && pressAt > 0 && ticks - pressAt >= 25) {
+                            actuate(end[0] + 1, end[1] + 1, end[2], false);
+                            pressAt = 0;
+                        }
+                        if (leg == 0 && still && Math.abs(l.getX() - (end[0] + 1.5)) <= 2.5
+                                && Math.abs(l.getY() - end[1]) <= 1.5 && Math.abs(l.getZ() - (end[2] + 0.5)) <= 1.5) {
+                            // arrived: ride back down with the pump-house button
+                            upSecs = ticks / 20;
+                            leg = 1;
+                            ticks = 0;
+                            actuate(end[0] + 1, end[1] + 1, end[2], true);
+                            pressAt = 1;
+                            return 10;
+                        }
+                        if (leg == 1 && still && ticks > 40 && l.distanceSquared(home) <= 2.25) {
+                            return finish(true, "up to the pump house in " + upSecs + " s, back down to the station in "
+                                    + ticks / 20 + " s, stopped at the bumper");
+                        }
+                        if (cart.isDead() || ticks > 2400) {
+                            return finish(false, (leg == 0 ? "cart did not arrive at the pump house" : "cart did not "
+                                    + "return to the station") + " (last at " + l.getBlockX() + " " + l.getBlockY() + " "
+                                    + l.getBlockZ() + ", furthest x " + (int) maxX + ")");
+                        }
+                        return 10;
+                    }
+                });
             } else if (m.type.equals("lift")) {
                 queue.add(new Case("lift sign " + m.note) {
                     int step(int s) {
@@ -435,6 +554,10 @@ public final class SelfTest implements Runnable {
 
     public void start() {
         taskId = Bukkit.getScheduler().runTaskTimer(plugin, this, 1L, 1L).getTaskId();
+    }
+
+    public boolean isRunning() {
+        return taskId != -1;
     }
 
     public void cancel() {

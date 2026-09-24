@@ -51,6 +51,9 @@ public final class BuildJob implements Runnable {
     private final List<String> errors = new ArrayList<String>();
     private int persistent;
     public final List<String> persistentSamples = new ArrayList<String>();
+    /** First-pass repairs: blocks the game changed while the build was running (falling gravel, fluids...). */
+    public final List<String> repairSamples = new ArrayList<String>();
+    private int relit;
     private long workStart;
     private long workDone;
     private final long workTotal;
@@ -230,6 +233,7 @@ public final class BuildJob implements Runnable {
                 } else if (phase == Plan.Phase.LIGHTS && Placer.staleLight(world, x, y, z, want)) {
                     Placer.reseat(world, x, y, z, want);
                     st.repaired++;
+                    relit++;
                 } else {
                     st.skipped++;
                 }
@@ -292,6 +296,10 @@ public final class BuildJob implements Runnable {
                 if (!repairOk(want, have)) {
                     Placer.place(world, x, y, z, want);
                     st.repaired++;
+                    if (st.repairPass == 0 && repairSamples.size() < 40) {
+                        repairSamples.add(x + " " + y + " " + z + " want " + B.id(want) + ":" + B.data(want) + " had "
+                                + B.id(have) + ":" + B.data(have));
+                    }
                     if (st.repairPass == 1) {
                         persistent++;
                         if (persistentSamples.size() < 40) {
@@ -381,6 +389,11 @@ public final class BuildJob implements Runnable {
                 .append(", repaired: ").append(st.repaired).append('\n');
         sb.append("Tile entities: ").append(st.tiles).append(" (errors ").append(st.tileErrors).append(")\n");
         sb.append("Entities: ").append(st.entities).append(" (errors ").append(st.entityErrors).append(")\n");
+        sb.append("Light sources re-seated to refresh lighting: ").append(relit).append('\n');
+        sb.append("\nBlocks fixed by the first repair pass (sample; the game changed them during the build):\n");
+        for (String s : repairSamples) {
+            sb.append("  ").append(s).append('\n');
+        }
         sb.append("\nBlocks the world changed again after the repair pass:\n");
         for (String s : persistentSamples) {
             sb.append("  ").append(s).append('\n');

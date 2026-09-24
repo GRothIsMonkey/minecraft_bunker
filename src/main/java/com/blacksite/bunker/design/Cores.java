@@ -234,8 +234,13 @@ public final class Cores {
                 k.set(x, f + 1, z, B.rail(1));
             }
         }
-        k.set(xs, f + 1, z, B.poweredRail(1, true)); // launcher next to the bumper
+        // launcher against the bumper: unpowered it is a brake that holds the cart (and stops returning carts);
+        // the button right above the rail powers it for a second and the cart is pushed away from the bumper
+        k.set(xs, f, z, B.SB);
+        k.set(xs, f + 1, z, B.poweredRail(1, false));
         k.set(xs - 1, f + 1, z, B.IRON);
+        k.set(xs - 1, f + 2, z, B.IRON);
+        k.set(xs, f + 2, z, B.button(Dir.EAST, false));
         // incline: ascending rail at (xe+kk, f+kk) for kk=1..62, stairs alongside at z-1, then flat at SURF+1
         int kkMax = SURF - f; // 62
         for (int kk = 1; kk <= kkMax; kk++) {
@@ -265,16 +270,18 @@ public final class Cores {
         int tx = xe + kkMax + 1; // -237
         k.set(tx, ty, z, B.rail(1));
         k.set(tx + 1, ty, z, B.rail(1));
-        k.set(tx + 2, ty, z, B.poweredRail(1, true));
-        k.set(tx + 2, ty - 1, z, B.RS_BLOCK);
+        k.set(tx + 2, ty, z, B.poweredRail(1, false));       // brake: arriving carts stop here
+        k.set(tx + 2, ty - 1, z, B.of(B.COBBLE));
+        k.set(tx + 3, ty + 1, z, B.of(B.BRICK));              // solid wall for the launch button
+        k.set(tx + 2, ty + 1, z, B.button(Dir.WEST, false));  // press while seated: back down to Level 6
         k.set(tx, ty, z - 1, B.A);
         k.set(tx - 2, ty, z + 1, B.COBWALL);
         k.set(tx - 3, ty, z + 1, B.COBWALL);
         k.set(tx - 4, ty, z + 1, B.COBWALL);
         k.set(tx - 3, ty, z - 2, B.COBWALL);
         k.set(tx - 4, ty, z - 2, B.COBWALL);
-        k.minecart(tx + 1, ty, z);
-        k.sign(tx + 2, ty + 2, z, Dir.WEST, "\u00a74EMERGENCY", "EGRESS RAIL", "to Level 6", "\u00a78ride west");
+        k.chest(tx + 1, ty, z - 3, Dir.SOUTH, Loot.spareCart());
+        k.sign(tx + 2, ty + 2, z, Dir.WEST, "\u00a74EMERGENCY", "EGRESS RAIL", "to Level 6", "\u00a78button: go");
         k.c.marker("rail-top", tx + 1, ty, z, "");
         k.c.room("Escape Rail Incline", "Secret", xe, f, z - 2, tx - 5, SURF - 2, z + 1, xe + 30, f + 31, z - 1);
     }

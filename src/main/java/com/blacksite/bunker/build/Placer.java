@@ -322,6 +322,10 @@ public final class Placer {
                         if (en instanceof Minecart && !en.isDead()) {
                             if (have) {
                                 en.remove();
+                            } else if (en.getPassenger() == null) {
+                                // back onto its planned rail cell, at rest (a rebuild resets the station)
+                                en.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+                                en.teleport(loc);
                             }
                             have = true;
                         }

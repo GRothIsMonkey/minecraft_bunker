@@ -178,6 +178,11 @@ public final class Loot {
         return L(i(263, 16));
     }
 
+    /** Working equipment, kept even when furnish-loot is off. */
+    public static ItemSpec[] spareCart() {
+        return new ItemSpec[]{i(328, 1)};
+    }
+
     public static ItemSpec[] reactorControl() {
         return L(i(331, 16), i(348, 16), Lore.reactorLog(), i(345, 1));
     }

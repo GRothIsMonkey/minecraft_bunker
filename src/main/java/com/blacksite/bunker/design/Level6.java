@@ -338,7 +338,8 @@ public final class Level6 {
             k.set(x, F + 1, 89, B.clay(B.YELLOW));
             k.set(x, F + 1, 86, B.slab(B.SLAB_STONEBRICK, false));
         }
-        k.minecart(-403, F + 1, 88);
+        k.minecart(-404, F + 1, 88);  // resting on the launcher (Cores.escapeRail)
+        k.c.marker("rail-station", -404, F + 1, 88, "button:-404," + (F + 2) + ",88");
         // command desk, map wall, bunks
         k.fill(x1 - 1, F + 2, 83, x1 - 1, F + 4, 91, B.clay(B.BLACK));
         k.fill(x1 - 1, F + 3, 84, x1 - 1, F + 3, 90, B.wool(B.WHITE));
@@ -354,7 +355,7 @@ public final class Level6 {
         k.set(x1 + 10, F + 1, z2, B.furnace(Dir.NORTH));
         k.set(x1 + 11, F + 1, z2, B.enderChest(Dir.NORTH));
         k.set(-405, F + 2, 88, B.IRON);
-        k.sign(-406, F + 2, 88, Dir.WEST, "§4EGRESS RAIL", "Sit in cart,", "it launches", "east >>>");
+        k.sign(-406, F + 2, 88, Dir.WEST, "§4EGRESS RAIL", "Sit in the cart", "press button", "east >>>");
         k.ceilingGrid(x1 + 1, z1 + 1, x2 - 1, z2 - 1, F + 6, 4, B.LAMP);
         k.c.secretRoom("SECRET: Director's Rail Station", LV, -424, F, 79, -398, F + 6, 95, -410, F + 1, 93);
     }

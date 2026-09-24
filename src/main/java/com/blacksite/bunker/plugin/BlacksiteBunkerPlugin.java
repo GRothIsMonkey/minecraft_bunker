@@ -324,7 +324,8 @@ public final class BlacksiteBunkerPlugin extends JavaPlugin implements Listener 
     /** Keeps chunks of the construction site loaded while a build or verification runs. */
     @EventHandler(ignoreCancelled = true)
     public void onUnload(ChunkUnloadEvent e) {
-        boolean active = (job != null && job.isRunning()) || (verifyJob != null && verifyJob.isRunning());
+        boolean active = (job != null && job.isRunning()) || (verifyJob != null && verifyJob.isRunning())
+                || (selfTest != null && selfTest.isRunning());
         if (!active || plan == null) {
             return;
         }
