@@ -43,7 +43,9 @@ public final class BlacksiteBunkerPlugin extends JavaPlugin implements Listener 
                 + "Use 'bunker build' then 'bunker confirm'.");
         if (state.status == BuildState.Status.INTERRUPTED || state.status == BuildState.Status.PAUSED) {
             getLogger().warning("A SITE-7 build was " + state.status.name().toLowerCase() + " in phase "
-                    + state.phase + ". Run 'bunker resume' to continue safely.");
+                    + state.phase + ". Run 'bunker resume' to continue safely."
+                    + (state.uncleanRestart ? " (The server was not shut down cleanly, so resume re-checks"
+                    + " every phase from the start.)" : ""));
         }
     }
 
@@ -52,6 +54,11 @@ public final class BlacksiteBunkerPlugin extends JavaPlugin implements Listener 
         if (job != null && job.isRunning()) {
             job.stop(BuildState.Status.INTERRUPTED);
             getLogger().warning("SITE-7 build interrupted by shutdown; 'bunker resume' will continue it.");
+        }
+        if (!state.uncleanRestart && !state.cleanStop) {
+            // normal shutdown: the server saves every chunk after plugins are disabled
+            state.cleanStop = true;
+            state.save();
         }
         if (verifyJob != null) {
             verifyJob.cancel();
@@ -195,6 +202,15 @@ public final class BlacksiteBunkerPlugin extends JavaPlugin implements Listener 
             sender.sendMessage(ChatColor.RED + "Target world not found. Check 'world' in config.yml.");
             return;
         }
+        if (!fresh && state.uncleanRestart) {
+            // After a crash the world on disk may be missing blocks placed before the saved cursor (and lamps,
+            // frames and paintings placed against them). Re-walk every phase from the start: blocks that are
+            // already correct are skipped cheaply, so this costs seconds, not a rebuild.
+            state.phase = Plan.Phase.CHUNKS.name();
+            state.cursor = 0;
+            state.repairPass = 0;
+        }
+        state.uncleanRestart = false;
         if (fresh) {
             state.status = BuildState.Status.RUNNING;
             state.phase = Plan.Phase.CHUNKS.name();
@@ -268,14 +284,14 @@ public final class BlacksiteBunkerPlugin extends JavaPlugin implements Listener 
         });
     }
 
-    public void startSelfTest(final CommandSender sender) {
+    public void startSelfTest(final CommandSender sender, final String filter) {
         if (selfTest != null) {
             selfTest.cancel();
         }
         withPlan(sender, new Runnable() {
             public void run() {
                 final String who = sender instanceof Player ? sender.getName() : null;
-                selfTest = new SelfTest(BlacksiteBunkerPlugin.this, plan, targetWorld(), new SelfTest.Done() {
+                selfTest = new SelfTest(BlacksiteBunkerPlugin.this, plan, targetWorld(), filter, new SelfTest.Done() {
                     public void done(SelfTest t) {
                         report(who, (t.failed == 0 ? ChatColor.GREEN : ChatColor.YELLOW) + "[SITE-7 selftest] "
                                 + t.passed + " passed, " + t.failed + " failed");

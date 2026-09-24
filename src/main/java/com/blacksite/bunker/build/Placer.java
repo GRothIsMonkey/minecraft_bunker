@@ -42,11 +42,52 @@ public final class Placer {
     public static boolean place(World w, int x, int y, int z, int b) {
         Block blk = w.getBlockAt(x, y, z);
         int id = B.id(b), data = B.data(b);
-        if (blk.getTypeId() == id && blk.getData() == data) {
+        int oldId = blk.getTypeId();
+        if (oldId == id && blk.getData() == data) {
             return false;
+        }
+        if (oldId != id && oldId != 0 && B.hasTile(B.of(oldId, 0))) {
+            // Swapping one tile block for another (e.g. hopper -> chest) in a single write leaves CraftBukkit
+            // with a stale tile entity; empty it (no item spill) and go through air first.
+            BlockState st = blk.getState();
+            Inventory inv = st instanceof Chest ? ((Chest) st).getBlockInventory()
+                    : st instanceof InventoryHolder ? ((InventoryHolder) st).getInventory() : null;
+            if (inv != null) {
+                inv.clear();
+            }
+            blk.setTypeIdAndData(0, (byte) 0, false);
         }
         blk.setTypeIdAndData(id, (byte) data, false);
         return true;
+    }
+
+    /**
+     * True when a correctly placed light source has not lit the air beside it (light data saved before the
+     * block was finished, e.g. after a crash). Such blocks are re-seated so the lighting engine spreads again.
+     */
+    @SuppressWarnings("deprecation")
+    public static boolean staleLight(World w, int x, int y, int z, int b) {
+        int e = B.emission(b);
+        if (e < 8) {
+            return false;
+        }
+        Block blk = w.getBlockAt(x, y, z);
+        for (BlockFace f : new BlockFace[] {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH,
+                BlockFace.EAST, BlockFace.WEST}) {
+            Block nb = blk.getRelative(f);
+            if (nb.getTypeId() == 0 && nb.getLightFromBlocks() < e - 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Removes and re-places a block so the lighting engine recomputes around it. */
+    @SuppressWarnings("deprecation")
+    public static void reseat(World w, int x, int y, int z, int b) {
+        Block blk = w.getBlockAt(x, y, z);
+        blk.setTypeIdAndData(0, (byte) 0, false);
+        blk.setTypeIdAndData(B.id(b), (byte) B.data(b), false);
     }
 
     @SuppressWarnings("deprecation")
@@ -217,12 +258,21 @@ public final class Placer {
                 case ARMOR_STAND: {
                     Block cell = w.getBlockAt(x, y, z);
                     Location loc = new Location(w, x + 0.5, y + standOffset(cell), z + 0.5, yaw(e.facing), 0f);
+                    ArmorStand as = null;
                     for (Entity en : w.getNearbyEntities(loc, 0.6, 1.0, 0.6)) {
-                        if (en instanceof ArmorStand) {
-                            en.remove();
+                        if (en instanceof ArmorStand && !en.isDead()) {
+                            if (as == null) {
+                                as = (ArmorStand) en;
+                            } else {
+                                en.remove(); // duplicate
+                            }
                         }
                     }
-                    ArmorStand as = w.spawn(loc, ArmorStand.class);
+                    if (as == null) {
+                        as = w.spawn(loc, ArmorStand.class);
+                    } else {
+                        as.teleport(loc);
+                    }
                     as.setGravity(false);
                     as.setBasePlate(e.basePlate);
                     as.setArms(e.arms);
@@ -237,31 +287,48 @@ public final class Placer {
                 case ITEM_FRAME:
                 case PAINTING: {
                     Block cell = w.getBlockAt(x, y, z);
-                    Class<? extends Hanging> cls = e.kind == EntitySpec.Kind.ITEM_FRAME ? ItemFrame.class : Painting.class;
-                    removeHanging(w, cell, cls);
-                    Location loc = new Location(w, x, y, z);
-                    Hanging h = w.spawn(loc, cls);
+                    boolean frame = e.kind == EntitySpec.Kind.ITEM_FRAME;
+                    Class<? extends Hanging> cls = frame ? ItemFrame.class : Painting.class;
                     BlockFace f = face(e.facing);
-                    if (h instanceof Painting) {
+                    Hanging h = findHanging(w, cell, cls, f);
+                    if (h == null) {
+                        Location loc = new Location(w, x, y, z);
+                        try {
+                            h = w.spawn(loc, cls);
+                        } catch (RuntimeException ex) {
+                            // CraftBukkit picks the first solid neighbour; build it directly facing the right way
+                            h = nmsHanging(w, x, y, z, f, frame);
+                            if (h == null) {
+                                return "no valid wall for " + e.kind + " facing " + f;
+                            }
+                        }
+                    }
+                    if (h instanceof Painting && ((Painting) h).getArt() != Art.valueOf(e.art)) {
                         ((Painting) h).setArt(Art.valueOf(e.art), true);
                     }
-                    if (!h.setFacingDirection(f, true)) {
+                    if (h.getFacing() != f && !h.setFacingDirection(f, true)) {
                         h.remove();
                         return "cannot face " + f;
                     }
-                    if (h instanceof ItemFrame && e.frameItem != null) {
+                    if (h instanceof ItemFrame) {
                         ((ItemFrame) h).setItem(Items.stack(e.frameItem));
                     }
                     return null;
                 }
                 case MINECART: {
                     Location loc = new Location(w, x + 0.5, y + 0.1, z + 0.5);
+                    boolean have = false;
                     for (Entity en : w.getNearbyEntities(loc, 1.2, 1.0, 1.2)) {
-                        if (en instanceof Minecart) {
-                            en.remove();
+                        if (en instanceof Minecart && !en.isDead()) {
+                            if (have) {
+                                en.remove();
+                            }
+                            have = true;
                         }
                     }
-                    w.spawn(loc, Minecart.class);
+                    if (!have) {
+                        w.spawn(loc, Minecart.class);
+                    }
                     return null;
                 }
                 default:
@@ -270,6 +337,58 @@ public final class Placer {
         } catch (RuntimeException ex) {
             return ex.getClass().getSimpleName() + ": " + ex.getMessage();
         }
+    }
+
+    /** 1.8 NMS fallback: construct the hanging entity in the given cell with an explicit direction. */
+    static Hanging nmsHanging(World w, int x, int y, int z, BlockFace f, boolean frame) {
+        try {
+            String ver = org.bukkit.Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
+            String p = "net.minecraft.server." + ver + ".";
+            Object nmsWorld = w.getClass().getMethod("getHandle").invoke(w);
+            Class<?> worldCls = Class.forName(p + "World");
+            Class<?> bp = Class.forName(p + "BlockPosition");
+            Class<?> enumDir = Class.forName(p + "EnumDirection");
+            Class<?> ent = Class.forName(p + (frame ? "EntityItemFrame" : "EntityPainting"));
+            Class<?> entityCls = Class.forName(p + "Entity");
+            Object pos = bp.getConstructor(int.class, int.class, int.class).newInstance(x, y, z);
+            Object dir = null;
+            for (Object c : enumDir.getEnumConstants()) {
+                if (((Enum<?>) c).name().equals(f.name())) {
+                    dir = c;
+                }
+            }
+            Object e = ent.getConstructor(worldCls, bp, enumDir).newInstance(nmsWorld, pos, dir);
+            if (!(Boolean) ent.getMethod("survives").invoke(e)) {
+                return null;
+            }
+            nmsWorld.getClass().getMethod("addEntity", entityCls).invoke(nmsWorld, e);
+            return (Hanging) e.getClass().getMethod("getBukkitEntity").invoke(e);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /** Existing live hanging entity of this class in the cell (paintings: within a block, same facing). */
+    static Hanging findHanging(World w, Block cell, Class<? extends Hanging> cls, BlockFace f) {
+        Location c = cell.getLocation().add(0.5, 0.5, 0.5);
+        Hanging found = null;
+        for (Entity en : w.getNearbyEntities(c, 1.5, 1.5, 1.5)) {
+            if (!cls.isInstance(en) || en.isDead()) {
+                continue;
+            }
+            Block at = en.getLocation().getBlock();
+            boolean same = at.getX() == cell.getX() && at.getZ() == cell.getZ()
+                    && (at.getY() == cell.getY() || (en instanceof Painting && Math.abs(at.getY() - cell.getY()) <= 1
+                    && ((Hanging) en).getFacing() == f));
+            if (same) {
+                if (found == null) {
+                    found = (Hanging) en;
+                } else {
+                    en.remove();
+                }
+            }
+        }
+        return found;
     }
 
     static void removeHanging(World w, Block cell, Class<? extends Hanging> cls) {

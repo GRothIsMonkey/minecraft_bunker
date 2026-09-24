@@ -31,9 +31,9 @@ public final class Surface {
     public void build() {
         berm();
         courtyard();
+        road();
         perimeter();
         gateTowers();
-        road();
         facade();
         roundDoor();
         rooftop();
@@ -257,15 +257,15 @@ public final class Surface {
         }
         // cargo box (rear, west part)
         k.fill(x, y + 1, z, x + 5, y + 3, z + 3, B.wool(B.GREEN));
-        k.fill(x, y + 1, z + 1, x, y + 2, z + 2, B.of(B.TRAPDOOR, 3));
+        k.fill(x, y + 1, z + 1, x, y + 2, z + 2, B.of(B.TRAPDOOR, 2 | 4)); // rear doors on the box
         // cab (east part)
         k.fill(x + 6, y + 1, z, x + 8, y + 2, z + 3, B.clay(B.GREEN));
         k.fill(x + 8, y + 2, z, x + 8, y + 2, z + 3, B.PANE);
         k.fill(x + 7, y + 2, z, x + 7, y + 2, z, B.PANE);
         k.fill(x + 7, y + 2, z + 3, x + 7, y + 2, z + 3, B.PANE);
         k.fill(x + 6, y + 3, z, x + 8, y + 3, z + 3, B.slab(B.SLAB_STONE, false));
-        k.set(x + 9, y, z, B.of(B.TRAPDOOR, 2 | 4));
-        k.set(x + 9, y, z + 3, B.of(B.TRAPDOOR, 2 | 4));
+        k.set(x + 9, y, z, B.of(B.TRAPDOOR, 3 | 4));
+        k.set(x + 9, y, z + 3, B.of(B.TRAPDOOR, 3 | 4));
         k.set(x + 9, y + 1, z + 1, B.GLOW);
         k.set(x + 9, y + 1, z + 2, B.GLOW);
     }
@@ -327,8 +327,8 @@ public final class Surface {
         k.fill(x2 - 3, SURF + 2, z1, x2 - 1, SURF + 2, z1, B.BARS);
         // generator: lit furnaces with iron casing
         for (int x = x1 + 1; x <= x1 + 3; x++) {
-            k.set(x, SURF + 1, z1 + 1, B.litFurnace(Dir.SOUTH));
-            k.set(x, SURF + 2, z1 + 1, B.IRON);
+            k.set(x, SURF + 1, z1 + 1, B.furnace(Dir.SOUTH));
+            k.set(x, SURF + 2, z1 + 1, x == x1 + 2 ? B.GLOW : B.IRON);
         }
         k.set(x2 - 1, SURF + 1, z1 + 1, B.of(B.NOTE_BLOCK));
         k.set(x2 - 2, SURF + 1, z1 + 1, B.of(B.CAULDRON, 3));
@@ -465,7 +465,7 @@ public final class Surface {
         for (int y = cy + 5; y <= cy + 9; y++) {
             k.set(x1 + 1, y, z1 + 1, B.BARS);
         }
-        k.lamp(x1 + 1, cy + 10, z1 + 1, Dir.UP);
+        k.lamp(x1 + 1, cy + 10, z1 + 1, Dir.DOWN);
         k.set(x1 + 1, cy + 11, z1 + 1, B.slab(B.SLAB_STONE, false));
         // interior of cabin: chair, console, searchlight
         k.set(x1 + 3, cy + 3, (z1 + z2) / 2, B.GLOW);

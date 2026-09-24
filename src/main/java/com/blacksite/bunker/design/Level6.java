@@ -201,6 +201,7 @@ public final class Level6 {
         k.set(px, F, 127, B.GLOW);
         k.set(px, F + 1, z1, B.A);
         k.set(px, F + 2, z1, B.A);
+        k.set(px, F, z1, B.GLOW);
         k.painting(px, F + 1, z1, Dir.SOUTH, "GRAHAM");
         k.c.marker("secret-passage", px, F + 1, 127, "GRAHAM");
         // desk and chair
@@ -241,9 +242,11 @@ public final class Level6 {
             k.set(x, F + 1, z2, B.GOLD);
         }
         k.set(x1 + 2, F + 2, z1, B.GOLD);
+        // one double chest and a single: three chests in a line would merge into a broken 1.8 "triple chest"
         k.chest(x1, F + 1, 131, Dir.EAST, Loot.vault());
         k.chest(x1, F + 1, 132, Dir.EAST);
-        k.chest(x1, F + 1, 133, Dir.EAST);
+        k.set(x1, F + 1, 133, B.GOLD);
+        k.chest(x1, F + 1, 134, Dir.EAST);
         k.set(x2, F + 1, z1, B.enderChest(Dir.WEST));
         k.itemFrame(x1, F + 3, 132, Dir.EAST, ItemSpec.of(264, 1));
         k.lamp(-417, F + 6, 132, Dir.UP);
@@ -350,7 +353,8 @@ public final class Level6 {
         k.set(x1 + 9, F + 1, z2, B.WORKBENCH_B);
         k.set(x1 + 10, F + 1, z2, B.furnace(Dir.NORTH));
         k.set(x1 + 11, F + 1, z2, B.enderChest(Dir.NORTH));
-        k.sign(-406, F + 1, 88, Dir.WEST, "§4EGRESS RAIL", "Sit in cart,", "it launches", "east >>>");
+        k.set(-405, F + 2, 88, B.IRON);
+        k.sign(-406, F + 2, 88, Dir.WEST, "§4EGRESS RAIL", "Sit in cart,", "it launches", "east >>>");
         k.ceilingGrid(x1 + 1, z1 + 1, x2 - 1, z2 - 1, F + 6, 4, B.LAMP);
         k.c.secretRoom("SECRET: Director's Rail Station", LV, -424, F, 79, -398, F + 6, 95, -410, F + 1, 93);
     }

@@ -154,7 +154,7 @@ public final class Level3 {
                 int m = Math.floorMod(x, 4);
                 if (m == 0) {
                     k.set(x, F + 2, z, B.of(B.BREWING_STAND));
-                } else if (m == 2) {
+                } else if (m == 2 && x != x2 - 3) { // not on the sink
                     k.set(x, F + 2, z + 1, B.of(B.FLOWER_POT));
                 }
             }
@@ -227,7 +227,12 @@ public final class Level3 {
         }
         // records chests and reading tables near the entrance (south east)
         int n = 0;
+        // two double chests split by a bookshelf (a line of five chests would merge into "triple chests")
         for (int x = x2 - 4; x <= x2; x++) {
+            if (x == x2 - 2) {
+                k.set(x, F + 1, z1, B.BOOKS);
+                continue;
+            }
             k.chest(x, F + 1, z1, Dir.SOUTH, Loot.archive(n++));
         }
         for (int x = x2 - 4; x <= x2 - 1; x += 3) {

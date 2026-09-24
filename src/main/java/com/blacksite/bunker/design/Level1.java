@@ -484,6 +484,9 @@ public final class Level1 {
         k.set(wx, F + 2, z + 1, wallBlock);
         k.set(wx, F + 3, z, wallBlock);
         k.set(wx, F, z, B.GLOW); // not a spawnable surface, and lights the gap
+        k.set(wx + roomSide.dx, F, z, B.GLOW);
+        k.set(wx + roomSide.dx, F + 1, z, B.A);
+        k.set(wx + roomSide.dx, F + 2, z, B.A);
         k.set(wx, F + 1, z - 1, wallBlock);
         k.set(wx, F + 2, z - 1, wallBlock);
         k.painting(wx + roomSide.dx, F + 1, z, roomSide, art);
@@ -524,13 +527,9 @@ public final class Level1 {
         for (int x = x1 + 1; x <= x2 - 1; x++) {
             for (int y = F + 2; y <= F + 5; y++) {
                 boolean frame = Math.floorMod(x - x1, 3) == 0 || y == F + 2 || y == F + 5;
-                k.set(x, y, 105, frame ? B.clay(B.BLACK) : (Canvas.rand(x, y, 105, 3) < 0.5 ? B.sglass(B.GREEN)
-                        : B.sglass(B.GRAY)));
+                k.set(x, y, 105, frame ? B.clay(B.BLACK) : (Canvas.rand(x, y, 105, 3) < 0.5 ? B.SEA
+                        : B.clay(B.GREEN)));
             }
-        }
-        for (int x = x1 + 2; x <= x2 - 1; x += 3) {
-            k.set(x, F + 3, 104, B.GLOW);
-            k.set(x, F + 4, 104, B.GLOW);
         }
         // control desk (curved)
         for (int x = x1 + 2; x <= x2 - 2; x++) {
@@ -593,7 +592,7 @@ public final class Level1 {
                 continue;
             }
             k.set(x, F + 1, z1, B.chest(Dir.SOUTH));
-            k.set(x, F + 2, z1, B.of(B.IRON_TRAPDOOR, 3 | 4));
+            k.set(x, F + 2, z1, B.of(B.IRON_TRAPDOOR, 1 | 4)); // open, hinged on the wall behind
             if (Math.floorMod(x, 3) == 0) {
                 k.set(x, F + 1, z1, B.IRON);
                 k.set(x, F + 2, z1, B.IRON);
@@ -713,7 +712,7 @@ public final class Level1 {
         }
         // weapon racks on the west wall: item frames with weapons above chests
         int n = 0;
-        for (int z = z1 + 2; z <= z2 - 2; z += 2) {
+        for (int z = z1 + 2; z <= 162; z += 2) {
             k.chest(x1, F + 1, z, Dir.EAST, n % 2 == 0 ? Loot.armoryWeapons() : new ItemSpec[0]);
             k.itemFrame(x1, F + 3, z, Dir.EAST, n % 3 == 0 ? ItemSpec.of(261, 1) : ItemSpec.of(n % 3 == 1 ? 267 : 272, 1));
             n++;
@@ -743,7 +742,7 @@ public final class Level1 {
         k.fill(-405, F + 1, 166, -403, F + 1, 168, B.of(B.TNT));
         k.set(-404, F + 2, 167, B.of(B.TNT));
         k.chest(-405, F + 1, 165, Dir.EAST, Loot.armoryExplosives());
-        k.sign(-401, F + 4, 164, Dir.NORTH, "§4EXPLOSIVES", "§4No flames", "§4No redstone", "");
+        k.sign(-402, F + 3, 163, Dir.NORTH, "§4EXPLOSIVES", "§4No flames", "§4No redstone", ""); // on the cage
         k.c.marker("explosives", -404, F + 1, 167, "TNT cage: no power sources nearby");
         // lockers along the south wall: 8 iron-door lockers; locker 5 is the secret annex entrance
         k.fill(-401, F + 1, z2 + 2, -385, F + 3, z2 + 3, s.wall);
@@ -794,8 +793,8 @@ public final class Level1 {
         e.legs = ItemSpec.of(304, 1);
         e.boots = ItemSpec.of(305, 1);
         e.hand = ItemSpec.of(267, 1);
-        k.itemFrame(x1 + 3, F + 3, z2 + 1, Dir.NORTH, ItemSpec.of(261, 1));
-        k.itemFrame(x1 + 6, F + 3, z2 + 1, Dir.NORTH, ItemSpec.of(276, 1));
+        k.itemFrame(x1 + 3, F + 3, z2, Dir.NORTH, ItemSpec.of(261, 1));
+        k.itemFrame(x1 + 6, F + 3, z2, Dir.NORTH, ItemSpec.of(276, 1));
         k.lamp(-393, F + 6, 176, Dir.UP);
         k.lamp(-397, F + 6, 176, Dir.UP);
         k.lamp(-389, F + 6, 176, Dir.UP);
@@ -830,7 +829,7 @@ public final class Level1 {
         k.set(x2, F + 1, z2 - 1, B.dispenser(Dir.WEST));
         // bright range lighting
         k.ceilingGrid(x1 + 1, z1 + 1, x2 - 1, z2 - 1, F + 7, 4, B.LAMP);
-        k.sign(-407, F + 3, 153, Dir.EAST, "FIRING RANGE", "§4Eye & ear", "§4protection", "");
+        k.sign(-405, F + 3, 153, Dir.EAST, "FIRING RANGE", "§4Eye & ear", "§4protection", "");
         k.c.room("Firing Range", LV, -432, F, 145, -406, F + 7, 169, -409, F + 1, 157);
     }
 

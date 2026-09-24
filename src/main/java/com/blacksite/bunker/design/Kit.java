@@ -225,11 +225,12 @@ public class Kit extends Painter {
 
     /** A wall console: base block, control surface on top. Faces {@code facing} (toward the operator). */
     public void console(int x, int y, int z, Dir facing, int variant) {
-        int base = variant % 3 == 0 ? B.IRON : variant % 3 == 1 ? B.of(B.NOTE_BLOCK) : B.of(B.DISPENSER, B.face(facing));
+        // bases are not redstone-sensitive and tops never emit power (no clicking dispensers or note blocks)
+        int base = variant % 3 == 0 ? B.IRON : variant % 3 == 1 ? B.QUARTZ_PILLAR : B.clay(B.BLACK);
         set(x, y, z, base);
         switch (variant % 4) {
             case 0: set(x, y + 1, z, B.of(B.DAYLIGHT_SENSOR)); break;
-            case 1: set(x, y + 1, z, B.lever(Dir.UP, (variant & 1) == 0)); break;
+            case 1: set(x, y + 1, z, B.lever(Dir.UP, false)); break;
             case 2: set(x, y + 1, z, B.comparator(facing)); break;
             default: set(x, y + 1, z, B.button(Dir.UP, false)); break;
         }
@@ -302,7 +303,16 @@ public class Kit extends Painter {
     }
 
     /** Carpet rectangle (on top of the floor block f: carpet occupies f+1). */
+    /** Carpet over the bare floor of an area; furniture already standing there is kept. */
     public void rug(int x1, int z1, int x2, int z2, int f, int carpet) {
-        fill(x1, f + 1, z1, x2, f + 1, z2, carpet);
+        for (int x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+            for (int z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) {
+                int cur = get(x, f + 1, z);
+                if (cur < 0 || cur == B.A || B.id(cur) == B.CARPET
+                        || (B.isHalfSlab(cur) && (B.data(cur) & 8) == 0)) {
+                    set(x, f + 1, z, carpet);
+                }
+            }
+        }
     }
 }

@@ -367,6 +367,12 @@ public final class Reactor {
                 }
             }
             for (int x = X1 + 3; x <= X2 - 3; x += 6) {
+                if (B.id(k.get(x, y, Z1 + 1)) == B.LADDER) {
+                    // a ladder only holds on a full opaque block (glowstone is glass in 1.8): light beside it
+                    k.set(x - 1, y, Z1, B.GLOW);
+                    k.set(x + 1, y, Z1, B.GLOW);
+                    continue;
+                }
                 if (k.get(x, y, Z1) != B.GLS) {
                     k.set(x, y, Z1, B.GLOW);
                 }

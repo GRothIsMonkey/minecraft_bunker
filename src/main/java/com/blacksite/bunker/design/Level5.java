@@ -175,10 +175,10 @@ public final class Level5 {
         for (int x = x1 + 2; x <= x2 - 2; x += 4) {
             for (int z = 150; z <= 158; z += 4) {
                 // generator block: iron casing, lit furnace core, exhaust
-                k.set(x, F + 1, z, B.litFurnace(Dir.SOUTH));
+                k.set(x, F + 1, z, B.furnace(Dir.SOUTH));
                 k.set(x + 1, F + 1, z, B.IRON);
                 k.set(x, F + 2, z, B.IRON);
-                k.set(x + 1, F + 2, z, B.of(B.NOTE_BLOCK));
+                k.set(x + 1, F + 2, z, B.GLOW);
                 k.set(x, F + 3, z, B.of(B.NETHER_FENCE));
                 k.set(x, F + 4, z, B.of(B.NETHER_FENCE));
             }

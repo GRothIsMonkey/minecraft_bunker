@@ -16,9 +16,49 @@ public final class Finisher {
         seal(c);
         cleanTiles(c, warnings);
         lavaSafety(c, warnings);
+        anchorSigns(c, warnings);
         spawnProof(c, warnings);
         c.meta.put("warnings", warnings);
         c.unlockAll();
+    }
+
+    /**
+     * A wall sign or banner pops off on its next block update unless a solid block is behind it. Signs mounted
+     * over a tall opening get a one-block lintel copied from the wall above (or below) the gap.
+     */
+    static void anchorSigns(Canvas c, List<String> warnings) {
+        int fixed = 0;
+        for (int i = 0; i < c.volume(); i++) {
+            int b = c.getRaw(i);
+            if (b < 0 || (B.id(b) != B.WALL_SIGN && B.id(b) != B.WALL_BANNER)) {
+                continue;
+            }
+            int x = c.xOf(i), y = c.yOf(i), z = c.zOf(i), d = B.data(b);
+            int bx = x + (d == 4 ? 1 : d == 5 ? -1 : 0), bz = z + (d == 2 ? 1 : d == 3 ? -1 : 0);
+            if (c.get(bx, y, bz) != B.A) {
+                continue;
+            }
+            int m = -1;
+            for (int cand : new int[] {c.get(bx, y + 1, bz), c.get(bx, y - 1, bz)}) {
+                if (cand >= 0 && anchor(cand)) {
+                    m = cand;
+                    break;
+                }
+            }
+            if (m < 0) {
+                warnings.add("wall sign without support at " + x + "," + y + "," + z);
+                continue;
+            }
+            c.set(bx, y, bz, m);
+            fixed++;
+        }
+        c.meta.put("signAnchors", fixed);
+    }
+
+    private static boolean anchor(int b) {
+        int id = B.id(b);
+        return B.isOpaqueCube(b) && !B.hasTile(b) && id != B.GLOWSTONE && id != B.SEA_LANTERN && id != B.LAMP_ON
+                && id != B.LAMP_OFF && id != B.REDSTONE_BLOCK && id != B.TNT;
     }
 
     /**

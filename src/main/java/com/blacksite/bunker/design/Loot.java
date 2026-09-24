@@ -175,7 +175,7 @@ public final class Loot {
     }
 
     public static ItemSpec[] smelterFuel() {
-        return L(i(263, 64), i(263, 32));
+        return L(i(263, 16));
     }
 
     public static ItemSpec[] reactorControl() {

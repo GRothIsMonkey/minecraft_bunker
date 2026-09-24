@@ -19,6 +19,10 @@ public final class Analyzer {
     public final List<String> doorProblems = new ArrayList<String>();
     public final List<String> redstoneProblems = new ArrayList<String>();
     public final List<String> lavaProblems = new ArrayList<String>();
+    /** Chests touching two chests of the same kind (1.8 "triple chest"), or pairs the game would re-orient. */
+    public final List<String> chestProblems = new ArrayList<String>();
+    /** Attached/gravity blocks that 1.8 block physics would pop off or drop on the next neighbour update. */
+    public final List<String> supportProblems = new ArrayList<String>();
     public int reachableRooms, totalRooms, darkCount, slimeCount;
 
     public Analyzer(Canvas c) {
@@ -32,7 +36,241 @@ public final class Analyzer {
         doors();
         redstone();
         lava();
+        chests();
+        support();
         return this;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // support: the builder places without physics, so an unsupported ladder, button, rail... survives until
+    // the first neighbour update (a door opening, a player placing a block) and then pops off. Rules: 1.8.8.
+    // ---------------------------------------------------------------------------------------------
+    /** Block.isOccluding(): opaque material, full cube, not a power source (glowstone/sea lantern are glass). */
+    private static boolean occluding(int b) {
+        int id = B.id(b);
+        return B.isOpaqueCube(b) && id != B.GLOWSTONE && id != B.SEA_LANTERN && id != B.REDSTONE_BLOCK
+                && id != B.LEAVES && id != B.LEAVES2 && id != B.ICE && id != B.TNT && id != B.SLIME;
+    }
+
+    /** World.a(IBlockAccess, pos): solid top surface for rails, doors, dust, plates, pots, torches. */
+    private static boolean topSolid(int b) {
+        int id = B.id(b);
+        if (B.isStairs(b)) {
+            return (B.data(b) & 4) != 0;
+        }
+        if (B.isHalfSlab(b)) {
+            return (B.data(b) & 8) != 0;
+        }
+        if (id == B.HOPPER) {
+            return true;
+        }
+        return B.isOpaqueCube(b) && id != B.GLOWSTONE && id != B.SEA_LANTERN && id != B.LEAVES
+                && id != B.LEAVES2 && id != B.ICE && id != B.TNT && id != B.SLIME;
+    }
+
+    /** Material.isBuildable(): anything but air, liquids and "decoration" materials. */
+    private static boolean buildable(int b) {
+        int id = B.id(b);
+        if (id == B.AIR || B.isFluid(b)) {
+            return false;
+        }
+        switch (id) {
+            case B.FIRE: case B.TORCH: case B.REDSTONE_TORCH: case B.REDSTONE_TORCH_OFF: case B.LEVER:
+            case B.STONE_BUTTON: case B.WOOD_BUTTON: case B.RAIL: case B.POWERED_RAIL: case B.DETECTOR_RAIL:
+            case B.ACTIVATOR_RAIL: case B.REDSTONE_WIRE: case B.LADDER: case B.REPEATER: case B.COMPARATOR:
+            case B.TRIPWIRE_HOOK: case B.TALL_GRASS: case B.DEAD_BUSH: case B.DANDELION: case B.FLOWER:
+            case B.BROWN_MUSHROOM: case B.RED_MUSHROOM: case B.WHEAT: case B.CARROTS: case B.POTATOES:
+            case B.SUGAR_CANE: case B.VINE: case B.SNOW_LAYER: case B.NETHER_WART: case B.PUMPKIN_STEM:
+            case B.MELON_STEM: case B.DOUBLE_PLANT: case B.FLOWER_POT: case B.SKULL:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    private static final int OCC = 0, TOP = 1, BUILD = 2, NONAIR = 3, TRAP = 4, DOOR = 5, FARM = 6, SOIL = 7,
+            TORCHBASE = 8, PLATE = 9, WIRE = 10;
+    private static final String[] NEED = {"a full opaque block", "a solid top", "a solid block", "a block",
+            "a full block, slab or stairs", "the door's lower half", "farmland", "grass or dirt",
+            "a solid top, fence, wall or glass", "a solid top or fence", "a solid top or glowstone"};
+
+    private void support() {
+        for (int i = 0; i < c.volume(); i++) {
+            int b = c.getRaw(i);
+            if (b < 0) {
+                continue;
+            }
+            int id = B.id(b), d = B.data(b), x = c.xOf(i), y = c.yOf(i), z = c.zOf(i);
+            int dx = 0, dy = -1, dz = 0, kind;
+            switch (id) {
+                case B.LADDER: case B.WALL_SIGN: case B.WALL_BANNER:
+                    dy = 0;
+                    dz = d == 2 ? 1 : d == 3 ? -1 : 0;
+                    dx = d == 4 ? 1 : d == 5 ? -1 : 0;
+                    kind = id == B.LADDER ? OCC : BUILD;
+                    break;
+                case B.TRIPWIRE_HOOK:
+                    dy = 0;
+                    dz = (d & 3) == 0 ? -1 : (d & 3) == 2 ? 1 : 0;
+                    dx = (d & 3) == 1 ? 1 : (d & 3) == 3 ? -1 : 0;
+                    kind = OCC;
+                    break;
+                case B.STONE_BUTTON: case B.WOOD_BUTTON: case B.LEVER: case B.TORCH: case B.REDSTONE_TORCH:
+                case B.REDSTONE_TORCH_OFF: {
+                    int f = d & 7;
+                    boolean torch = id == B.TORCH || id == B.REDSTONE_TORCH || id == B.REDSTONE_TORCH_OFF;
+                    kind = OCC;
+                    if (f == 1) {
+                        dx = -1; dy = 0;
+                    } else if (f == 2) {
+                        dx = 1; dy = 0;
+                    } else if (f == 3) {
+                        dz = -1; dy = 0;
+                    } else if (f == 4) {
+                        dz = 1; dy = 0;
+                    } else if (f == 0 || (f == 7 && id == B.LEVER)) {
+                        dy = torch ? -1 : 1;
+                    }
+                    if (dy == -1) {
+                        kind = torch ? TORCHBASE : TOP;
+                    }
+                    break;
+                }
+                case B.TRAPDOOR: case B.IRON_TRAPDOOR:
+                    dy = 0;
+                    dz = (d & 3) == 0 ? 1 : (d & 3) == 1 ? -1 : 0;
+                    dx = (d & 3) == 2 ? 1 : (d & 3) == 3 ? -1 : 0;
+                    kind = TRAP;
+                    break;
+                case B.OAK_DOOR: case B.IRON_DOOR: case B.SPRUCE_DOOR: case B.BIRCH_DOOR: case B.DARK_OAK_DOOR:
+                    kind = (d & 8) != 0 ? DOOR : TOP;
+                    break;
+                case B.RAIL: case B.POWERED_RAIL: case B.DETECTOR_RAIL: case B.ACTIVATOR_RAIL: case B.REPEATER:
+                case B.COMPARATOR: case B.FLOWER_POT:
+                    kind = TOP;
+                    break;
+                case B.REDSTONE_WIRE:
+                    kind = WIRE;
+                    break;
+                case B.STONE_PLATE: case B.WOOD_PLATE: case B.GOLD_PLATE: case B.IRON_PLATE:
+                    kind = PLATE;
+                    break;
+                case B.CARPET: case B.SAND: case B.GRAVEL: case B.ANVIL: case B.DRAGON_EGG:
+                    kind = NONAIR;
+                    break;
+                case B.SIGN_POST: case B.STANDING_BANNER: case B.CAKE:
+                    kind = BUILD;
+                    break;
+                case B.WHEAT: case B.CARROTS: case B.POTATOES: case B.PUMPKIN_STEM: case B.MELON_STEM:
+                    kind = FARM;
+                    break;
+                case B.DANDELION: case B.FLOWER: case B.TALL_GRASS:
+                    kind = SOIL;
+                    break;
+                case B.DOUBLE_PLANT:
+                    kind = (d & 8) != 0 ? NONAIR : SOIL;
+                    break;
+                default:
+                    continue;
+            }
+            int s = c.get(x + dx, y + dy, z + dz);
+            if (s < 0) {
+                continue; // natural terrain: unknown
+            }
+            int sid = B.id(s);
+            boolean ok;
+            switch (kind) {
+                case OCC: ok = occluding(s); break;
+                case TOP: ok = topSolid(s); break;
+                case BUILD: ok = buildable(s); break;
+                case NONAIR: ok = sid != B.AIR && !B.isFluid(s); break;
+                case TRAP: ok = (topSolid(s) && !B.isStairs(s) && !B.isHalfSlab(s)) || sid == B.GLOWSTONE
+                        || B.isStairs(s) || B.isHalfSlab(s); break;
+                case DOOR: ok = sid == id; break;
+                case FARM: ok = sid == B.FARMLAND; break;
+                case SOIL: ok = sid == B.GRASS || sid == B.DIRT || sid == B.FARMLAND; break;
+                case TORCHBASE: ok = topSolid(s) || sid == B.FENCE || sid == B.NETHER_FENCE || sid == B.SPRUCE_FENCE
+                        || sid == B.DARK_OAK_FENCE || sid == B.COBBLE_WALL || sid == B.GLASS
+                        || sid == B.STAINED_GLASS; break;
+                case PLATE: ok = topSolid(s) || sid == B.FENCE || sid == B.NETHER_FENCE || sid == B.SPRUCE_FENCE
+                        || sid == B.DARK_OAK_FENCE; break;
+                case WIRE: ok = topSolid(s) || sid == B.GLOWSTONE; break;
+                default: ok = true;
+            }
+            if (!ok) {
+                supportProblems.add(x + " " + y + " " + z + " " + id + ":" + d + " needs " + NEED[kind] + " at "
+                        + (x + dx) + " " + (y + dy) + " " + (z + dz) + " (has " + sid + ":" + B.data(s) + ")");
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // chests: 1.8 joins every touching chest of the same kind, and BlockChest re-orients pairs on placement
+    // ---------------------------------------------------------------------------------------------
+    private boolean opaqueAt(int x, int y, int z) {
+        int b = c.get(x, y, z);
+        return b >= 0 && B.isOpaqueCube(b);
+    }
+
+    private void chests() {
+        for (int i = 0; i < c.volume(); i++) {
+            int b = c.getRaw(i);
+            if (b < 0 || (B.id(b) != B.CHEST && B.id(b) != B.TRAPPED_CHEST)) {
+                continue;
+            }
+            int x = c.xOf(i), y = c.yOf(i), z = c.zOf(i), id = B.id(b);
+            boolean n = B.id(c.get(x, y, z - 1)) == id && c.get(x, y, z - 1) >= 0;
+            boolean s = B.id(c.get(x, y, z + 1)) == id && c.get(x, y, z + 1) >= 0;
+            boolean w = B.id(c.get(x - 1, y, z)) == id && c.get(x - 1, y, z) >= 0;
+            boolean e = B.id(c.get(x + 1, y, z)) == id && c.get(x + 1, y, z) >= 0;
+            int count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
+            String at = x + " " + y + " " + z;
+            if (count > 1) {
+                chestProblems.add(at + " touches " + count + " chests of the same kind (merged triple chest)");
+                continue;
+            }
+            if (count == 1) {
+                int ox = w ? x - 1 : e ? x + 1 : x, oz = n ? z - 1 : s ? z + 1 : z;
+                int other = c.get(ox, y, oz);
+                int ocount = 0;
+                for (int[] d : new int[][] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    int nb = c.get(ox + d[0], y, oz + d[1]);
+                    if (nb >= 0 && B.id(nb) == id) {
+                        ocount++;
+                    }
+                }
+                if (ocount > 1) {
+                    chestProblems.add(at + " pairs with a chest that touches " + ocount + " chests");
+                    continue;
+                }
+                // emulate BlockChest.e(): the facing the game will settle on
+                int want;
+                if (w || e) {
+                    want = B.data(other) == 2 ? 2 : 3;
+                    boolean fn = opaqueAt(x, y, z - 1), fs = opaqueAt(x, y, z + 1);
+                    boolean on = opaqueAt(ox, y, z - 1), os = opaqueAt(ox, y, z + 1);
+                    if ((fn || on) && !fs && !os) {
+                        want = 3;
+                    }
+                    if ((fs || os) && !fn && !on) {
+                        want = 2;
+                    }
+                } else {
+                    want = B.data(other) == 4 ? 4 : 5;
+                    boolean fw = opaqueAt(x - 1, y, z), fe = opaqueAt(x + 1, y, z);
+                    boolean ow = opaqueAt(x - 1, y, oz), oe = opaqueAt(x + 1, y, oz);
+                    if ((fw || ow) && !fe && !oe) {
+                        want = 5;
+                    }
+                    if ((fe || oe) && !fw && !ow) {
+                        want = 4;
+                    }
+                }
+                if (want != B.data(b)) {
+                    chestProblems.add(at + " pair facing " + B.data(b) + " would be turned to " + want);
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -593,6 +831,8 @@ public final class Analyzer {
         sb.append("door problems: ").append(doorProblems.size()).append('\n');
         sb.append("redstone problems: ").append(redstoneProblems.size()).append('\n');
         sb.append("lava problems: ").append(lavaProblems.size()).append('\n');
+        sb.append("chest problems: ").append(chestProblems.size()).append('\n');
+        sb.append("support problems: ").append(supportProblems.size()).append('\n');
         return sb.toString();
     }
 }

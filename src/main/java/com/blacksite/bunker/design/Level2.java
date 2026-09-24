@@ -276,9 +276,8 @@ public final class Level2 {
             } else {
                 k.set(x2, F + 1, z, B.stairs(B.QUARTZ_STAIRS, Dir.EAST, true));
             }
-            k.set(x2, F + 3, z, B.BARS);
+            k.set(x2, F + 3, z, z % 3 == 0 ? B.GLOW : B.BARS);
         }
-        k.set(x2, F + 1, 155, B.litFurnace(Dir.WEST));
         // prep island
         for (int x = -325; x <= -316; x++) {
             k.set(x, F + 1, 155, B.stairs(B.QUARTZ_STAIRS, Dir.NORTH, true));
@@ -291,7 +290,7 @@ public final class Level2 {
         for (int x = x1 + 1; x <= x2 - 2; x++) {
             k.set(x, F + 1, z1, x % 3 == 0 ? B.of(B.CAULDRON, 3) : B.chest(Dir.SOUTH));
         }
-        k.c.tile(new TileSpec.Inventory(-327, F + 1, z1, Painter.spread(Loot.kitchen(), 27, 1, 1, 1)));
+        k.c.tile(new TileSpec.Inventory(-328, F + 1, z1, Painter.spread(Loot.kitchen(), 27, 1, 1, 1)));
         k.c.tile(new TileSpec.Inventory(-326, F + 1, z1, Painter.spread(Loot.rations(), 27, 2, 1, 1)));
         k.set(x1, F + 1, 162, B.of(B.BREWING_STAND));
         k.set(x1, F + 1, 160, B.of(B.HAY_BALE));
@@ -345,7 +344,7 @@ public final class Level2 {
         k.ceilingGrid(x1, z1, x2, z2, F + 5, 3, B.GLOW);
         k.set(x1, F + 1, z1 - 0, B.chest(Dir.SOUTH));
         k.c.tile(new TileSpec.Inventory(x1, F + 1, z1, Painter.spread(Loot.farm(), 27, 5, 5, 5)));
-        k.sign(-362, F + 3, 159, Dir.WEST, "§2HYDROPONICS", "Wheat Carrots", "Potatoes", "§8don't jump!");
+        k.sign(-361, F + 3, 159, Dir.EAST, "§2HYDROPONICS", "Wheat Carrots", "Potatoes", "§8don't jump!");
         k.c.room("Hydroponics Farm", LV, -381, F, 155, -362, F + 5, 187, -370, F + 2, 171);
         k.c.marker("farm", -372, F + 1, 170, "crops need light >= 9");
     }
@@ -405,7 +404,7 @@ public final class Level2 {
             k.set(x1 + 1, F + 2, z + 1, B.QUARTZ);
         }
         k.ceilingGrid(x1 + 1, z1 + 1, x2 - 1, z2 - 1, F + 7, 4, B.SEA);
-        k.sign(-406, F + 3, 151, Dir.EAST, "WASHROOMS", "Showers", "", "");
+        k.sign(-404, F + 3, 151, Dir.EAST, "WASHROOMS", "Showers", "", "");
         k.c.room("Showers & Washrooms", LV, -424, F, 145, -405, F + 7, 161, -412, F + 1, 153);
         // workshop
         x1 = -423;

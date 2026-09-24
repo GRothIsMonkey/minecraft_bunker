@@ -154,7 +154,7 @@ public final class Cores {
             } else {
                 k.sign(-378, f + 2, 148, Dir.NORTH, "[Lift]", "Level 6", "Containment", "§8bottom");
             }
-            k.sign(-379, f + 3, 147, Dir.NORTH, "§lLEVEL " + lvl, LEVEL_NAMES[li].split(" & ")[0], "", "");
+            k.sign(-379, f + 3, 148, Dir.NORTH, "§lLEVEL " + lvl, LEVEL_NAMES[li].split(" & ")[0], "", "");
             k.sign(-379, f + 3, 144, Dir.NORTH, "§1PERSONNEL", "§1LIFT", "", "");
             k.c.marker("lift", -380, f + 2, 148, "pl-up-L" + lvl);
             k.c.marker("lift", -378, f + 2, 148, "pl-down-L" + lvl);

@@ -46,9 +46,10 @@ public final class BunkerCommand implements CommandExecutor {
             case "pause": pause(s); break;
             case "resume": resume(s); break;
             case "verify": plugin.startVerify(s); break;
-            case "selftest": plugin.startSelfTest(s); break;
+            case "selftest": plugin.startSelfTest(s, args.length > 1 ? args[1] : null); break;
             case "info": info(s); break;
             case "speed": speed(s, args); break;
+            case "probe": probe(s, args); break;
             case "report":
                 s.sendMessage(T + "Last verification: " + V + (plugin.state().lastVerify.isEmpty() ? "never"
                         : plugin.state().lastVerify));
@@ -210,8 +211,14 @@ public final class BunkerCommand implements CommandExecutor {
         }
         plugin.withPlan(s, new Runnable() {
             public void run() {
-                s.sendMessage(ChatColor.GREEN + "Resuming SITE-7 at " + st.phase + " #" + st.cursor
-                        + " (everything already placed is skipped).");
+                if (st.uncleanRestart) {
+                    s.sendMessage(ChatColor.YELLOW + "The server did not shut down cleanly while SITE-7 was being built,"
+                            + " so recent chunk changes may be lost. Re-checking every phase from the start"
+                            + " (blocks already in place are skipped quickly).");
+                } else {
+                    s.sendMessage(ChatColor.GREEN + "Resuming SITE-7 at " + st.phase + " #" + st.cursor
+                            + " (everything already placed is skipped).");
+                }
                 plugin.startBuild(s, false);
             }
         });
@@ -228,6 +235,39 @@ public final class BunkerCommand implements CommandExecutor {
             s.sendMessage(T + "Tick budget set to " + V + plugin.budget() + " ms");
         } catch (NumberFormatException e) {
             s.sendMessage(ChatColor.RED + "Not a number: " + args[1]);
+        }
+    }
+
+    /** Admin diagnostic: bunker probe x y z [sx sy sz] - prints block ids:data and container contents. */
+    @SuppressWarnings("deprecation")
+    private void probe(CommandSender s, String[] args) {
+        if (args.length < 4) {
+            s.sendMessage(T + "Usage: bunker probe <x> <y> <z> [sizeX sizeY sizeZ]");
+            return;
+        }
+        int x = Integer.parseInt(args[1]), y = Integer.parseInt(args[2]), z = Integer.parseInt(args[3]);
+        int sx = args.length > 4 ? Integer.parseInt(args[4]) : 1, sy = args.length > 5 ? Integer.parseInt(args[5]) : 1;
+        int sz = args.length > 6 ? Integer.parseInt(args[6]) : 1;
+        World w = plugin.targetWorld();
+        for (int yy = y + sy - 1; yy >= y; yy--) {
+            for (int zz = z; zz < z + sz; zz++) {
+                StringBuilder sb = new StringBuilder("y" + yy + " z" + zz + ":");
+                for (int xx = x; xx < x + sx; xx++) {
+                    org.bukkit.block.Block b = w.getBlockAt(xx, yy, zz);
+                    sb.append(' ').append(b.getTypeId()).append(':').append(b.getData());
+                    if (b.getState() instanceof org.bukkit.inventory.InventoryHolder) {
+                        int n = 0;
+                        for (org.bukkit.inventory.ItemStack it : ((org.bukkit.inventory.InventoryHolder) b.getState())
+                                .getInventory().getContents()) {
+                            if (it != null) {
+                                n += it.getAmount();
+                            }
+                        }
+                        sb.append('[').append(n).append(']');
+                    }
+                }
+                s.sendMessage(sb.toString());
+            }
         }
     }
 

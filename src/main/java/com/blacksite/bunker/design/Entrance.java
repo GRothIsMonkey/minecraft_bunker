@@ -160,7 +160,7 @@ public final class Entrance {
         // signs
         k.sign(x1 + 1, SURF + 3, 137, Dir.EAST, "§lCHECKPOINT", "§lALPHA", "Present your", "credentials");
         k.sign(x1 + 1, SURF + 3, 145, Dir.EAST, "§4NO WEAPONS", "§4BEYOND", "§4THIS POINT", "");
-        k.sign(x2 - 1, SURF + 4, 137, Dir.WEST, "§lEXIT", "Surface", "Courtyard", "§8>>>");
+        k.sign(x2 - 2, SURF + 4, 136, Dir.SOUTH, "§lEXIT", "Surface", "Courtyard", "§8>>> east");
         k.sign(x1 - 1, SURF + 3, 137, Dir.WEST, "§lRAMP DOWN", "Level 1", "Security &", "Command");
         k.wallBanner(x1 + 1, SURF + 7, 140, Dir.EAST, B.BLACK, "ss", "yellow", "flo", "yellow", "bo", "gray");
         k.wallBanner(x1 + 1, SURF + 7, 142, Dir.EAST, B.BLACK, "ss", "yellow", "flo", "yellow", "bo", "gray");
@@ -196,7 +196,7 @@ public final class Entrance {
         }
         k.set(x1 + 1, SURF + 2, zc, B.of(B.DAYLIGHT_SENSOR));
         k.set(x1 + 3, SURF + 2, zc, B.lever(Dir.UP, false));
-        k.set(x1 + 5, SURF + 2, zc, B.button(Dir.UP, false));
+        k.set(x1 + 4, SURF + 2, zc, B.button(Dir.UP, false));
         k.chair(x1 + 2, SURF + 1, zc - window.dz, B.SPRUCE, window);
         k.chair(x1 + 5, SURF + 1, zc - window.dz, B.SPRUCE, window);
         // back wall: lockers & monitor wall
@@ -304,7 +304,7 @@ public final class Entrance {
             k.set(-291, SURF + 8, z, B.clay(Math.floorMod(z, 2) == 0 ? B.YELLOW : B.BLACK));
         }
         for (int z = 157; z <= 163; z++) {
-            k.set(-293, SURF + 7, z, B.of(B.IRON_TRAPDOOR, 8));
+            k.set(-293, SURF + 7, z, B.of(B.IRON_TRAPDOOR, 3 | 8)); // hinged on the beam at x-1
         }
         k.fill(-294, SURF + 8, 156, -292, SURF + 8, 164, B.IRON);
         k.sign(-291, SURF + 6, 165, Dir.EAST, "§lLOADING BAY B", "Freight lift", "§4Clearance 6m", "");
@@ -359,7 +359,7 @@ public final class Entrance {
         k.set(fx, SURF + 1, fz, B.clay(B.YELLOW));
         k.set(fx + 1, SURF + 1, fz, B.clay(B.YELLOW));
         k.set(fx, SURF + 2, fz, B.stairs(B.QUARTZ_STAIRS, Dir.EAST, false));
-        k.set(fx - 1, SURF + 1, fz, B.of(B.IRON_TRAPDOOR, 0));
+        k.set(fx - 1, SURF + 1, fz, B.of(B.IRON_TRAPDOOR, 2)); // forks, hinged on the body
         k.set(fx - 1, SURF + 2, fz, B.BARS);
         k.set(fx - 1, SURF + 3, fz, B.BARS);
         // lighting

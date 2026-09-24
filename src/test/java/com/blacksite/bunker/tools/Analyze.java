@@ -33,6 +33,8 @@ public final class Analyze {
         print("DOOR", a.doorProblems, 100);
         print("REDSTONE", a.redstoneProblems, 60);
         print("LAVA", a.lavaProblems, 40);
+        print("CHEST", a.chestProblems, 200);
+        print("SUPPORT", a.supportProblems, 400);
         print("DARK", a.darkSpawns, limit);
         print("SLIME", a.slimeSpawns, limit);
         // chest count

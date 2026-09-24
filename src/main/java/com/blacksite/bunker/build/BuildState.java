@@ -20,6 +20,13 @@ public final class BuildState {
     public long placed, skipped, repaired, tiles, entities, tileErrors, entityErrors;
     public long startedAt, updatedAt, finishedAt;
     public String lastVerify = "";
+    /** True when the last server session ended with a normal shutdown (worlds were saved after the build). */
+    public boolean cleanStop = true;
+    /**
+     * Set on load when an unfinished build was cut off by a crash or kill: chunks written since the last world
+     * save are gone, so work before the saved cursor can no longer be trusted.
+     */
+    public boolean uncleanRestart = false;
 
     private final File file;
 
@@ -57,6 +64,8 @@ public final class BuildState {
         updatedAt = y.getLong("updated-at");
         finishedAt = y.getLong("finished-at");
         lastVerify = y.getString("last-verify", "");
+        cleanStop = y.getBoolean("clean-stop", true);
+        uncleanRestart = !cleanStop && status != Status.COMPLETE && status != Status.NONE;
         if (status == Status.RUNNING) {
             // the server stopped while building
             status = Status.INTERRUPTED;
@@ -86,6 +95,7 @@ public final class BuildState {
         y.set("updated-at", System.currentTimeMillis());
         y.set("finished-at", finishedAt);
         y.set("last-verify", lastVerify);
+        y.set("clean-stop", cleanStop);
         try {
             file.getParentFile().mkdirs();
             y.save(file);

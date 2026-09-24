@@ -5,7 +5,14 @@ import com.blacksite.bunker.design.Canvas;
 import com.blacksite.bunker.plugin.LiftListener;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.Chest;
+import org.bukkit.inventory.FurnaceInventory;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.Constructor;
@@ -53,13 +60,21 @@ public final class SelfTest implements Runnable {
         abstract int step(int s);
     }
 
-    public SelfTest(Plugin plugin, Plan plan, World world, Done done) {
+    public SelfTest(Plugin plugin, Plan plan, World world, String filter, Done done) {
         this.plugin = plugin;
         this.plan = plan;
         this.world = world;
         this.done = done;
         initPhysics();
         buildCases();
+        if (filter != null) {
+            java.util.Iterator<Case> it = queue.iterator();
+            while (it.hasNext()) {
+                if (!it.next().name.toLowerCase().contains(filter.toLowerCase())) {
+                    it.remove();
+                }
+            }
+        }
     }
 
     private void initPhysics() {
@@ -245,6 +260,101 @@ public final class SelfTest implements Runnable {
                                 }
                                 return -1;
                         }
+                    }
+                });
+            } else if (m.type.equals("smelter")) {
+                queue.add(new Case("super smelter (real items through the hopper chain)") {
+                    final java.util.Map<String, ItemStack[]> snap = new java.util.HashMap<String, ItemStack[]>();
+
+                    Inventory inv(int bx, int by, int bz) {
+                        BlockState st = world.getBlockAt(bx, by, bz).getState();
+                        if (st instanceof Chest) {
+                            return ((Chest) st).getBlockInventory();
+                        }
+                        return st instanceof InventoryHolder ? ((InventoryHolder) st).getInventory() : null;
+                    }
+
+                    List<int[]> cells() {
+                        List<int[]> l = new ArrayList<int[]>();
+                        for (int i = -1; i <= 12; i++) {
+                            for (int dy = -1; dy <= 3; dy++) {
+                                for (int dz = -1; dz <= 1; dz++) {
+                                    l.add(new int[]{x + i, y + dy, z + dz});
+                                }
+                            }
+                        }
+                        return l;
+                    }
+
+                    int step(int s) {
+                        if (s == 0) {
+                            for (int[] c : cells()) {
+                                Inventory v = inv(c[0], c[1], c[2]);
+                                if (v != null) {
+                                    snap.put(c[0] + "," + c[1] + "," + c[2], v.getContents().clone());
+                                }
+                            }
+                            for (int pair = 0; pair < 3; pair++) {
+                                Inventory ore = inv(x + pair * 2, y + 2, z), fuel = inv(x + pair * 2, y + 1, z - 1);
+                                if (ore == null || fuel == null) {
+                                    fail(name + ": loading chests missing");
+                                    return -1;
+                                }
+                                ore.addItem(new ItemStack(Material.IRON_ORE, 8));
+                                fuel.addItem(new ItemStack(Material.COAL, 8));
+                            }
+                            return 440;
+                        }
+                        int ingots = 0, used = 0;
+                        for (int i = 0; i < 12; i++) {
+                            Inventory f = inv(x + i, y, z);
+                            if (f instanceof FurnaceInventory) {
+                                FurnaceInventory fi = (FurnaceInventory) f;
+                                if (fi.getSmelting() != null || fi.getResult() != null) {
+                                    used++;
+                                }
+                                if (fi.getResult() != null && fi.getResult().getType() == Material.IRON_INGOT) {
+                                    ingots += fi.getResult().getAmount();
+                                }
+                            }
+                        }
+                        for (int dz = 0; dz <= 1; dz++) {
+                            Inventory out = inv(x + 12, y - 1, z + dz);
+                            if (out != null) {
+                                for (ItemStack it : out.getContents()) {
+                                    if (it != null && it.getType() == Material.IRON_INGOT) {
+                                        ingots += it.getAmount();
+                                    }
+                                }
+                            }
+                        }
+                        int outIngots = 0;
+                        for (int dz = 0; dz <= 1; dz++) {
+                            Inventory out = inv(x + 12, y - 1, z + dz);
+                            if (out != null) {
+                                for (ItemStack it : out.getContents()) {
+                                    if (it != null && it.getType() == Material.IRON_INGOT) {
+                                        outIngots += it.getAmount();
+                                    }
+                                }
+                            }
+                        }
+                        notes.add(name + ": " + used + " furnaces working, " + ingots + " ingots smelted, " + outIngots
+                                + " already delivered to the output chest");
+                        // restore every container exactly
+                        for (java.util.Map.Entry<String, ItemStack[]> e : snap.entrySet()) {
+                            String[] p = e.getKey().split(",");
+                            Inventory v = inv(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+                            if (v != null) {
+                                v.setContents(e.getValue());
+                            }
+                        }
+                        if (used >= 3 && outIngots >= 1) {
+                            pass();
+                        } else {
+                            fail(name + ": only " + used + " furnaces received ore, " + outIngots + " ingots delivered");
+                        }
+                        return -1;
                     }
                 });
             } else if (m.type.equals("lift")) {

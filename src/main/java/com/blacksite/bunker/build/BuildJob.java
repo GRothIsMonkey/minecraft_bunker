@@ -104,6 +104,7 @@ public final class BuildJob implements Runnable {
 
     public void start() {
         st.status = BuildState.Status.RUNNING;
+        st.cleanStop = false; // until onDisable records a normal shutdown
         if (st.startedAt == 0) {
             st.startedAt = System.currentTimeMillis();
         }
@@ -223,8 +224,12 @@ public final class BuildJob implements Runnable {
                 workDone++;
                 int x = plan.wx(idx), y = plan.wy(idx), z = plan.wz(idx);
                 ensureLoaded(x, z);
-                if (Placer.place(world, x, y, z, plan.block(idx))) {
+                int want = plan.block(idx);
+                if (Placer.place(world, x, y, z, want)) {
                     st.placed++;
+                } else if (phase == Plan.Phase.LIGHTS && Placer.staleLight(world, x, y, z, want)) {
+                    Placer.reseat(world, x, y, z, want);
+                    st.repaired++;
                 } else {
                     st.skipped++;
                 }
@@ -327,7 +332,7 @@ public final class BuildJob implements Runnable {
         int id = B.id(want);
         switch (id) {
             case B.WATER: case B.WATER_FLOW: case B.LAVA: case B.LAVA_FLOW: case B.FARMLAND: case B.LEAVES:
-            case B.LEAVES2: case B.REDSTONE_WIRE:
+            case B.LEAVES2: case B.REDSTONE_WIRE: case B.DAYLIGHT_SENSOR:
                 return Placer.equivalent(want, have);
             default:
                 return false;
@@ -363,6 +368,35 @@ public final class BuildJob implements Runnable {
 
     public List<String> errors() {
         return errors;
+    }
+
+    private void writeReport() {
+        java.io.File dir = new java.io.File(plugin.getDataFolder(), "reports");
+        dir.mkdirs();
+        StringBuilder sb = new StringBuilder();
+        sb.append("SITE-7 build report\n").append(new java.util.Date()).append("\n\n");
+        sb.append("World: ").append(world.getName()).append("  bounds: ").append(plan.boundsString()).append('\n');
+        sb.append("Duration: ").append((st.finishedAt - st.startedAt) / 1000).append(" s\n");
+        sb.append("Blocks placed: ").append(st.placed).append(", already correct: ").append(st.skipped)
+                .append(", repaired: ").append(st.repaired).append('\n');
+        sb.append("Tile entities: ").append(st.tiles).append(" (errors ").append(st.tileErrors).append(")\n");
+        sb.append("Entities: ").append(st.entities).append(" (errors ").append(st.entityErrors).append(")\n");
+        sb.append("\nBlocks the world changed again after the repair pass:\n");
+        for (String s : persistentSamples) {
+            sb.append("  ").append(s).append('\n');
+        }
+        sb.append("\nErrors:\n");
+        for (String s : errors) {
+            sb.append("  ").append(s).append('\n');
+        }
+        try {
+            java.io.Writer w = new java.io.OutputStreamWriter(new java.io.FileOutputStream(
+                    new java.io.File(dir, "build-latest.txt")), java.nio.charset.Charset.forName("UTF-8"));
+            w.write(sb.toString());
+            w.close();
+        } catch (java.io.IOException e) {
+            log.warning("could not write build report: " + e);
+        }
     }
 
     private void cleanup() {
@@ -409,6 +443,7 @@ public final class BuildJob implements Runnable {
         st.status = BuildState.Status.COMPLETE;
         st.finishedAt = System.currentTimeMillis();
         st.save();
+        writeReport();
         listener.finished(this);
     }
 }
